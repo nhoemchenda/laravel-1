@@ -13,6 +13,7 @@ use Illuminate\Support\Fluent;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Reliese\Coders\Model\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model as Eloquent;
+use Illuminate\Support\Facades\Config;
 use Reliese\Coders\Model\Relations\ReferenceFactory;
 
 class Model
@@ -245,12 +246,31 @@ class Model
     }
 
     /**
+     * convert cast for postgress
+     */
+    protected function castConvertForPostgress($cast){
+        $convertedCast = $cast;
+        if(Config::get('database.default') === 'pgsql'){
+            $castMap = [
+                'character varying' => 'string',
+                'timestamp without time zone' => 'date'
+            ];
+            if(array_key_exists($cast,$castMap)){
+                $convertedCast = $castMap[$convertedCast];
+            }
+        }
+        return $convertedCast;
+    }
+
+    /**
      * @param \Illuminate\Support\Fluent $column
      */
     protected function parseColumn(Fluent $column)
     {
         // TODO: Check type cast is OK
         $cast = $column->type;
+
+        $cast = $this->castConvertForPostgress($cast);
 
         $propertyName = $this->usesPropertyConstants() ? 'self::'.strtoupper($column->name) : $column->name;
 
@@ -521,6 +541,13 @@ class Model
      */
     public function getClassName()
     {
+        // Model names can be manually overridden by users in the config file.
+        // If a config entry exists for this table, use that name, rather than generating one.
+        $overriddenName = $this->config('model_names.' . $this->getTable());
+        if ($overriddenName) {
+            return $overriddenName;
+        }
+
         if ($this->shouldLowerCaseTableName()) {
             return Str::studly(Str::lower($this->getRecordName()));
         }
@@ -1233,5 +1260,13 @@ class Model
     public function config($key = null, $default = null)
     {
         return $this->factory->config($this->getBlueprint(), $key, $default);
+    }
+
+    /**
+     * @return bool
+     */
+    public function fillableInBaseFiles(): bool
+    {
+        return $this->config('fillable_in_base_files', false);
     }
 }

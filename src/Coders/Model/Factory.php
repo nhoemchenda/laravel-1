@@ -401,7 +401,8 @@ class Factory
             $properties = array_diff($properties, $excludedConstants);
 
             foreach ($properties as $property) {
-                $body .= $this->class->constant(strtoupper($property), $property);
+                $constantName = Str::upper(Str::snake($property));
+                $body .= $this->class->constant($constantName, $property);
             }
         }
 
@@ -457,7 +458,7 @@ class Factory
             $body .= $this->class->field('hidden', $model->getHidden(), ['before' => "\n"]);
         }
 
-        if ($model->hasFillable() && $model->doesNotUseBaseFiles()) {
+        if ($model->hasFillable() && ($model->doesNotUseBaseFiles() || $model->fillableInBaseFiles())) {
             $body .= $this->class->field('fillable', $model->getFillable(), ['before' => "\n"]);
         }
 
@@ -566,7 +567,7 @@ class Factory
             $body .= $this->class->field('hidden', $model->getHidden());
         }
 
-        if ($model->hasFillable()) {
+        if ($model->hasFillable() && !$model->fillableInBaseFiles()) {
             $body .= $this->class->field('fillable', $model->getFillable(), ['before' => "\n"]);
         }
 
